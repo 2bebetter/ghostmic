@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GhostMic · 让文字说进麦克风</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --danger: #dc2626;
+    --ok: #16a34a;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px 20px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 650; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+
+  textarea {
+    width: 100%;
+    min-height: 88px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    transition: border-color .15s;
+  }
+  textarea:focus { border-color: var(--accent); }
+
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--muted); }
+  select, input[type=number] {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+    outline: none;
+    min-width: 130px;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+
+  .btn {
+    padding: 9px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s, opacity .15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+  .btn-ghost {
+    background: #fff; color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: #f3f4f6; }
+  .btn-sm { padding: 5px 12px; font-size: 13px; border-radius: 6px; }
+  .btn-danger { background: #fff; color: var(--danger); border: 1px solid #fecaca; }
+  .btn-danger:hover { background: #fef2f2; }
+
+  .status { font-size: 13px; margin-top: 12px; min-height: 20px; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--danger); }
+  .status.info { color: var(--muted); }
+
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+  }
+  .item .meta { flex: 1; min-width: 0; }
+  .item .name {
+    font-size: 14px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .item .info { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .item .actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 28px 0; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--muted);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+
+  .hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.7; }
+  code {
+    background: #f3f4f6; padding: 1px 5px; border-radius: 4px;
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  }
+  .playing { color: var(--accent); font-weight: 500; }
+
+  .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .btn-exit {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--muted);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-exit:hover { border-color: #fecaca; color: var(--danger); background: #fef2f2; }
+
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,.35);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: #fff; border-radius: 14px; padding: 24px;
+    max-width: 380px; width: 100%;
+    box-shadow: 0 10px 40px rgba(0,0,0,.15);
+  }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .modal p { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 20px; }
+  .modal .acts { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-solid-danger { background: var(--danger); color: #fff; }
+  .btn-solid-danger:hover { background: #b91c1c; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>GhostMic</h1>
+      <p class="sub" style="margin-bottom:0;">让文字"说"进麦克风 —— 输入文字 → 生成音频 → 送去虚拟麦克风，浏览器 / AI 工具当成语音输入</p>
+    </div>
+    <button class="btn-exit" id="btn-exit">退出工具</button>
+  </div>
+  <div style="height:24px;"></div>
+
+  <div class="card">
+    <h2>生成语音</h2>
+    <textarea id="text" placeholder="在这里输入要转成语音的文字，例如：你好，请自我介绍下自己，你对我有什么帮助？"></textarea>
+    <div class="row">
+      <div class="field">
+        <label>音色</label>
+        <select id="voice">
+          <option value="Tingting" selected>婷婷（Tingting）</option>
+          <option value="Sinji">善怡（Sinji，粤语）</option>
+          <option value="Meijia">美佳（Meijia，台湾）</option>
+          <option value="Eddy (中文（中国大陆）)">Eddy（大陆）</option>
+          <option value="Flo (中文（中国大陆）)">Flo（大陆）</option>
+          <option value="Sandy (中文（中国大陆）)">Sandy（大陆）</option>
+          <option value="Reed (中文（中国大陆）)">Reed（大陆）</option>
+          <option value="Rocko (中文（中国大陆）)">Rocko（大陆）</option>
+          <option value="Shelley (中文（中国大陆）)">Shelley（大陆）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>语速（默认 200）</label>
+        <input type="number" id="rate" value="200" min="80" max="400" step="10">
+      </div>
+      <div class="field">
+        <label>播放到</label>
+        <select id="device"></select>
+      </div>
+      <button class="btn btn-primary" id="btn-gen">生成音频</button>
+      <button class="btn btn-primary" id="btn-genplay">生成并送去麦克风</button>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="hint">
+      用法：浏览器 / AI 工具的麦克风选 <code>BlackHole 2ch</code>，点它的听筒按钮后，这边点「送去麦克风」，声音就会作为输入进去。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>
+      音频文件
+      <span class="badge" style="margin-left:8px;"><span class="dot"></span><span id="count">0</span> 个</span>
+    </h2>
+    <div class="list" id="list"></div>
+    <div class="hint" id="dirHint"></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="exitMask">
+  <div class="modal">
+    <h3>关闭工具？</h3>
+    <p>关闭后服务会停止，8787 端口释放。已生成的音频文件不会删除，下次启动还在。要重新使用，双击 <code>启动工具.command</code> 即可。</p>
+    <div class="acts">
+      <button class="btn btn-ghost" id="exit-cancel">取消</button>
+      <button class="btn btn-solid-danger" id="exit-ok">确认退出</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let state = { items: [] };
+let playingName = null;
+
+async function api(path, body) {
+  const opt = body
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    : {};
+  const res = await fetch(path, opt);
+  return res.json();
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function fmtTime(ts) {
+  const d = new Date(ts * 1000);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function setStatus(msg, type) {
+  const el = $('#status');
+  el.textContent = msg || '';
+  el.className = 'status ' + (type || '');
+}
+
+function renderList() {
+  const list = $('#list');
+  $('#count').textContent = state.items.length;
+  if (!state.items.length) {
+    list.innerHTML = '<div class="empty">还没有音频，输入文字生成一个试试</div>';
+    return;
+  }
+  list.innerHTML = state.items.map((it) => `
+    <div class="item" data-name="${it.name}">
+      <div class="meta">
+        <div class="name">${it.name.replace(/\.wav$/, '')}</div>
+        <div class="info">${fmtTime(it.mtime)} · ${it.duration != null ? it.duration + ' 秒' : '—'} · ${fmtSize(it.size)}</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm act-listen">试听</button>
+        <button class="btn btn-ghost btn-sm act-send">送去麦克风</button>
+        <button class="btn btn-danger btn-sm act-del">删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function refresh() {
+  const data = await api('/api/list');
+  state.items = data.items || [];
+  renderList();
+}
+
+function currentDevice() {
+  const v = $('#device').value;
+  return v ? parseInt(v, 10) : null;
+}
+
+async function playToMic(name) {
+  playingName = name;
+  const r = await api('/api/play', { name, device: currentDevice() });
+  if (r.ok) {
+    setStatus(`正在播放到麦克风：${name}`, 'ok');
+    setTimeout(() => { if (playingName === name) playingName = null; }, 1500);
+  } else {
+    setStatus('播放失败：' + (r.error || ''), 'err');
+  }
+}
+
+async function generate(andPlay) {
+  const text = $('#text').value.trim();
+  if (!text) { setStatus('请先输入文字', 'err'); return; }
+  const btns = [$('#btn-gen'), $('#btn-genplay')];
+  btns.forEach((b) => b.disabled = true);
+  setStatus('正在合成音频…', 'info');
+  try {
+    const r = await api('/api/generate', {
+      text,
+      voice: $('#voice').value,
+      rate: parseInt($('#rate').value, 10) || 200,
+    });
+    if (!r.ok) { setStatus('合成失败：' + (r.error || ''), 'err'); return; }
+    state.items = r.items || [];
+    renderList();
+    setStatus('已生成：' + r.name, 'ok');
+    if (andPlay) await playToMic(r.name);
+  } catch (e) {
+    setStatus('出错了：' + e.message, 'err');
+  } finally {
+    btns.forEach((b) => b.disabled = false);
+  }
+}
+
+// 事件
+$('#btn-gen').onclick = () => generate(false);
+$('#btn-genplay').onclick = () => generate(true);
+
+$('#list').addEventListener('click', async (e) => {
+  const item = e.target.closest('.item');
+  if (!item) return;
+  const name = item.dataset.name;
+  if (e.target.classList.contains('act-listen')) {
+    const audio = new Audio('/audio/' + encodeURIComponent(name));
+    audio.play();
+    setStatus('本机试听：' + name, 'info');
+  } else if (e.target.classList.contains('act-send')) {
+    playToMic(name);
+  } else if (e.target.classList.contains('act-del')) {
+    if (!confirm('确定删除 ' + name + ' ？')) return;
+    const r = await api('/api/delete', { name });
+    state.items = r.items || [];
+    renderList();
+    setStatus(r.ok ? '已删除：' + name : '删除失败', r.ok ? 'ok' : 'err');
+  }
+});
+
+// 退出
+$('#btn-exit').onclick = () => $('#exitMask').classList.add('show');
+$('#exit-cancel').onclick = () => $('#exitMask').classList.remove('show');
+$('#exitMask').addEventListener('click', (e) => {
+  if (e.target.id === 'exitMask') $('#exitMask').classList.remove('show');
+});
+$('#exit-ok').onclick = async () => {
+  try { await api('/api/shutdown', {}); } catch (e) {}
+  document.body.innerHTML =
+    '<div style="max-width:520px;margin:120px auto;text-align:center;font-family:-apple-system,\'PingFang SC\',sans-serif;">' +
+    '<div style="font-size:40px;margin-bottom:16px;">✓</div>' +
+    '<h2 style="font-size:18px;font-weight:600;color:#1f2328;margin-bottom:10px;">工具已关闭</h2>' +
+    '<p style="color:#6b7280;font-size:14px;line-height:1.8;">服务已停止，这个标签页可以关掉了。<br>下次要用，双击 <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">启动工具.command</code> 即可。</p>' +
+    '</div>';
+};
+
+async function init() {
+  const s = await api('/api/state');
+  const sel = $('#device');
+  sel.innerHTML = (s.devices || []).map((d) =>
+    `<option value="${d.index}"${d.index === s.defaultDevice ? ' selected' : ''}>${d.name}${d.is_virtual ? '（虚拟）' : ''}</option>`
+  ).join('');
+  state.items = s.items || [];
+  renderList();
+  $('#dirHint').textContent = '存放目录：' + (s.audioDir || '');
+}
+init();
+
+// Ctrl/Cmd + Enter 生成
+$('#text').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') generate(false);
+});
+</script>
+</body>
+</html>

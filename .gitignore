@@ -1,0 +1,12 @@
+# 生成的音频文件不入库
+audio/*.wav
+audio/.*.aiff
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
