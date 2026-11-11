@@ -10,3 +10,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+
+# 本机生成的 macOS 应用
+/GhostMic.app/
+/.ghostmic-build-*/

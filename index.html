@@ -1,383 +1,436 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GhostMic · 让文字说进麦克风</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>GhostMic · 你打字，它开口</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #f6f7f9;
-    --card: #ffffff;
-    --border: #e5e7eb;
-    --text: #1f2328;
-    --muted: #6b7280;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --danger: #dc2626;
-    --ok: #16a34a;
-  }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    padding: 32px 20px 60px;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: 780px; margin: 0 auto; }
-  h1 { font-size: 22px; font-weight: 650; margin-bottom: 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
-
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
-
-  textarea {
-    width: 100%;
-    min-height: 88px;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 15px;
-    font-family: inherit;
-    resize: vertical;
-    outline: none;
-    transition: border-color .15s;
-  }
-  textarea:focus { border-color: var(--accent); }
-
-  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 12px; }
-  .field { display: flex; flex-direction: column; gap: 5px; }
-  .field label { font-size: 12px; color: var(--muted); }
-  select, input[type=number] {
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 14px;
-    font-family: inherit;
-    background: #fff;
-    outline: none;
-    min-width: 130px;
-  }
-  select:focus, input:focus { border-color: var(--accent); }
-
-  .btn {
-    padding: 9px 18px;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-family: inherit;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background .15s, opacity .15s;
-  }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: var(--accent-hover); }
-  .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
-  .btn-ghost {
-    background: #fff; color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .btn-ghost:hover { background: #f3f4f6; }
-  .btn-sm { padding: 5px 12px; font-size: 13px; border-radius: 6px; }
-  .btn-danger { background: #fff; color: var(--danger); border: 1px solid #fecaca; }
-  .btn-danger:hover { background: #fef2f2; }
-
-  .status { font-size: 13px; margin-top: 12px; min-height: 20px; }
-  .status.ok { color: var(--ok); }
-  .status.err { color: var(--danger); }
-  .status.info { color: var(--muted); }
-
-  .list { display: flex; flex-direction: column; gap: 8px; }
-  .item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: #fff;
-  }
-  .item .meta { flex: 1; min-width: 0; }
-  .item .name {
-    font-size: 14px; font-weight: 500;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .item .info { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .item .actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 28px 0; }
-
-  .badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 12px; color: var(--muted);
-  }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
-
-  .hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.7; }
-  code {
-    background: #f3f4f6; padding: 1px 5px; border-radius: 4px;
-    font-family: ui-monospace, Menlo, monospace; font-size: 12px;
-  }
-  .playing { color: var(--accent); font-weight: 500; }
-
-  .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  .btn-exit {
-    flex-shrink: 0;
-    padding: 8px 16px;
-    border: 1px solid var(--border);
-    background: #fff;
-    color: var(--muted);
-    border-radius: 8px;
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  .btn-exit:hover { border-color: #fecaca; color: var(--danger); background: #fef2f2; }
-
-  .modal-mask {
-    position: fixed; inset: 0; background: rgba(0,0,0,.35);
-    display: none; align-items: center; justify-content: center;
-    z-index: 100; padding: 20px;
-  }
-  .modal-mask.show { display: flex; }
-  .modal {
-    background: #fff; border-radius: 14px; padding: 24px;
-    max-width: 380px; width: 100%;
-    box-shadow: 0 10px 40px rgba(0,0,0,.15);
-  }
-  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-  .modal p { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 20px; }
-  .modal .acts { display: flex; gap: 10px; justify-content: flex-end; }
-  .btn-solid-danger { background: var(--danger); color: #fff; }
-  .btn-solid-danger:hover { background: #b91c1c; }
+/* The window surface is adapted from cmdk's Raycast example, MIT licensed. */
+:root {
+  color-scheme: light dark;
+  --canvas: light-dark(#f4f4f5, #101010);
+  --surface: light-dark(#fcfcfc, #1c1c1c);
+  --subtle: light-dark(#f6f6f6, #222);
+  --hover: light-dark(#ededed, #303030);
+  --border: light-dark(#e2e2e2, #383838);
+  --text: light-dark(#171717, #ededed);
+  --secondary: light-dark(#666, #aaa);
+  --placeholder: light-dark(#858585, #929292);
+  --button: light-dark(#171717, #ededed);
+  --button-text: light-dark(#fff, #171717);
+  --error: light-dark(#a9302a, #f4a19b);
+  --success: light-dark(#39835b, #83c69b);
+  --shadow: 0 16px 55px light-dark(#00000016, #00000055);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--canvas); color: var(--text); }
+button, select, textarea { font: inherit; }
+button { color: inherit; cursor: pointer; }
+button:disabled, select:disabled { cursor: not-allowed; opacity: .5; }
+:focus-visible { outline: 2px solid light-dark(#808080, #b0b0b0); outline-offset: 3px; }
+[hidden] { display: none !important; }
+.page { width: 100%; max-width: 656px; padding: min(18vh, 128px) 18px 48px; margin: 0 auto; }
+body.desktop .page { max-width: none; padding: 10px 12px 14px; }
+body.desktop .window { box-shadow: none; }
+.window { overflow: visible; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.icon { display: inline-block; width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; }
+.brand { display: flex; align-items: center; gap: 9px; min-width: 0; font-size: 13px; font-weight: 600; }
+.brand-mark { display: grid; place-items: center; width: 24px; height: 24px; color: #fff; background: linear-gradient(#f55354, #eb4646); border-radius: 6px; }
+.brand-mark .icon { width: 16px; height: 16px; }
+.device-toggle { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; padding: 5px 0 5px 6px; background: transparent; border: 0; color: var(--secondary); font-size: 11px; }
+.device-toggle:hover { color: var(--text); }
+.header-actions { display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 65%; }
+.exit-button { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--secondary); }
+.exit-button:hover { background: var(--hover); color: var(--text); }
+.exit-button .icon { width: 15px; height: 15px; }
+.device-toggle .device-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-toggle .icon { width: 12px; height: 12px; }
+.device-dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--placeholder); }
+.device-dot.ready { background: var(--success); }
+.device-panel { margin: 7px 20px 2px; padding: 13px 14px; background: var(--subtle); border: 1px solid var(--border); border-radius: 7px; }
+.device-panel-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.device-panel label { color: var(--secondary); font-size: 12px; }
+.device-select { flex: 1; min-width: 130px; max-width: 100%; padding: 6px 8px; color: var(--text); border: 1px solid var(--border); border-radius: 5px; background: var(--surface); font-size: 12px; }
+.text-button { padding: 5px 0; border: 0; background: transparent; color: var(--secondary); font-size: 11px; }
+.text-button:hover { color: var(--text); }
+.device-hint { margin: 9px 0 0; color: var(--secondary); font-size: 11px; line-height: 1.65; }
+.device-bottom { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.device-bottom a { color: var(--secondary); font-size: 11px; text-underline-offset: 2px; }
+.compose { padding: 17px 24px 22px; }
+.editor-label { display: block; color: var(--secondary); font-size: 11px; margin-bottom: 12px; }
+.editor { display: block; width: 100%; min-height: 110px; max-height: 360px; padding: 0; border: 0; border-radius: 0; resize: none; background: transparent; color: var(--text); font-size: 20px; line-height: 1.8; letter-spacing: -.25px; }
+.editor::placeholder { color: var(--placeholder); }
+.editor:focus { outline: none; }
+.editor:focus-visible { outline: 2px solid light-dark(#aaa, #777); outline-offset: 5px; }
+.options { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-top: 16px; }
+.option { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--secondary); }
+.option .icon { width: 14px; height: 14px; }
+.option select { min-width: 0; max-width: 174px; padding: 4px 12px 4px 3px; color: var(--secondary); border: 0; border-radius: 4px; background: transparent; font-size: 12px; }
+.option select option { color: var(--text); background: var(--surface); }
+.footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 11px 16px; background: var(--subtle); border-top: 1px solid var(--border); }
+.footer-info { flex: 1; min-width: 0; }
+.status { min-width: 0; color: var(--secondary); font-size: 11px; overflow-wrap: anywhere; }
+.progress { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.progress-track { flex: 1; height: 2px; overflow: hidden; border-radius: 2px; background: var(--border); }
+.progress-fill { width: 0; height: 100%; border-radius: inherit; background: var(--secondary); transition: width .2s linear; }
+.progress-time { flex: none; color: var(--secondary); font-size: 10px; font-variant-numeric: tabular-nums; }
+.status.error { color: var(--error); }
+.speak { display: inline-flex; justify-content: center; align-items: center; gap: 7px; flex: none; padding: 8px 11px; border: 0; border-radius: 6px; background: var(--button); color: var(--button-text); font-size: 12px; font-weight: 600; }
+.speak:hover:not(:disabled) { opacity: .84; }
+.speak kbd { margin-left: 5px; color: inherit; font: 11px inherit; opacity: .65; }
+.history { border-top: 1px solid var(--border); }
+.history-toggle { display: flex; align-items: center; gap: 7px; width: 100%; padding: 12px 20px; border: 0; border-radius: 0 0 12px 12px; background: transparent; color: var(--secondary); text-align: left; font-size: 11px; }
+.history-toggle:hover, .record:hover { background: var(--hover); }
+.history-toggle .icon { width: 13px; height: 13px; }
+.history-chevron { margin-left: auto; transition: transform .15s; }
+.history-toggle[aria-expanded="true"] .history-chevron { transform: rotate(180deg); }
+.history-list { padding: 0 8px 9px; }
+.history-list ul { list-style: none; padding: 0; margin: 0; }
+.record { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 8px; }
+.record-icon { display: grid; place-items: center; width: 27px; height: 27px; flex: none; color: var(--secondary); border-radius: 7px; background: var(--hover); }
+.record-icon .icon { width: 15px; height: 15px; }
+.record-meta { min-width: 0; flex: 1; }
+.record-title { overflow: hidden; color: var(--text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.record-info { margin-top: 3px; color: var(--secondary); font-size: 11px; }
+.record-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+.record-action { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 28px; min-height: 28px; padding: 4px 5px; border: 0; border-radius: 5px; background: transparent; color: var(--secondary); font-size: 11px; }
+.record-action:hover:not(:disabled) { background: var(--surface); color: var(--text); }
+.record-action .icon { width: 14px; height: 14px; }
+.record-action.delete:hover:not(:disabled) { color: var(--error); }
+.empty { padding: 12px; color: var(--secondary); font-size: 12px; }
+.closed { max-width: 420px; margin: 15vh auto 0; padding: 24px; text-align: center; }
+.closed h1 { margin: 0 0 10px; font-size: 18px; font-weight: 600; }
+.closed p { color: var(--secondary); font-size: 13px; line-height: 1.7; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 510px) {
+  .page { padding: 32px 12px; }
+  .header { padding: 16px 14px 10px; }
+  .compose { padding: 16px 17px 18px; }
+  .editor { min-height: 126px; font-size: 18px; }
+  .options { gap: 10px; }
+  .option select { max-width: 145px; }
+  .footer { gap: 8px; padding: 11px 13px; }
+  .speak kbd { display: none; }
+  .device-panel { margin: 5px 14px; padding: 10px; }
+  .record { gap: 7px; padding: 9px 6px; }
+  .record-icon { display: none; }
+  .record-action { min-width: 27px; padding: 4px; }
+}
+@media (pointer: coarse) {
+  .device-toggle, .history-toggle, .record-action, .speak { min-height: 44px; }
+  .option select, .device-select { min-height: 44px; font-size: 16px; }
+  .option select { max-width: 180px; }
+}
+@media (prefers-reduced-motion: reduce) { .history-chevron, .progress-fill { transition: none; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="topbar">
-    <div>
-      <h1>GhostMic</h1>
-      <p class="sub" style="margin-bottom:0;">让文字"说"进麦克风 —— 输入文字 → 生成音频 → 送去虚拟麦克风，浏览器 / AI 工具当成语音输入</p>
-    </div>
-    <button class="btn-exit" id="btn-exit">退出工具</button>
-  </div>
-  <div style="height:24px;"></div>
-
-  <div class="card">
-    <h2>生成语音</h2>
-    <textarea id="text" placeholder="在这里输入要转成语音的文字，例如：你好，请自我介绍下自己，你对我有什么帮助？"></textarea>
-    <div class="row">
-      <div class="field">
-        <label>音色</label>
-        <select id="voice">
-          <option value="Tingting" selected>婷婷（Tingting）</option>
-          <option value="Sinji">善怡（Sinji，粤语）</option>
-          <option value="Meijia">美佳（Meijia，台湾）</option>
-          <option value="Eddy (中文（中国大陆）)">Eddy（大陆）</option>
-          <option value="Flo (中文（中国大陆）)">Flo（大陆）</option>
-          <option value="Sandy (中文（中国大陆）)">Sandy（大陆）</option>
-          <option value="Reed (中文（中国大陆）)">Reed（大陆）</option>
-          <option value="Rocko (中文（中国大陆）)">Rocko（大陆）</option>
-          <option value="Shelley (中文（中国大陆）)">Shelley（大陆）</option>
-        </select>
+<svg aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-ghost" viewBox="0 0 24 24"><path d="M5 19V10a7 7 0 0 1 14 0v9l-2-1.5L15 19l-3-1.5L9 19l-2-1.5L5 19Z"/><path d="M9.5 10.5h.01M14.5 10.5h.01" stroke-width="2.8"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v9M7.1 5.8a8 8 0 1 0 9.8 0"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-audio" viewBox="0 0 24 24"><path d="M3 10v4M7 7v10M11 4v16M15 7v10M19 9v6M22 11v2"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M5 18a8 8 0 1 1 14 0M12 14l3-3"/><path d="M12 14h.01"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2 6M4 5v6h6M12 7v5l3 2"/></symbol>
+  <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 13v-1a8 8 0 0 1 16 0v1M4 13h3v5H5a1 1 0 0 1-1-1ZM20 13h-3v5h2a1 1 0 0 0 1-1Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M7 7l1 12h8l1-12M10 10v6M14 10v6"/></symbol>
+</svg>
+<main class="page" id="app">
+  <section class="window" aria-label="GhostMic">
+    <header class="header">
+      <div class="brand"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-ghost"/></svg></span><span>GhostMic</span></div>
+      <div class="header-actions"><button class="device-toggle" id="device-toggle" type="button" aria-expanded="false" aria-controls="device-panel" aria-label="输出设备设置">
+        <span class="device-dot" id="device-dot"></span><span class="device-name" id="device-name">正在查找设备</span><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+      </button><button class="exit-button" id="exit" type="button" title="退出 GhostMic" aria-label="退出 GhostMic"><svg class="icon" aria-hidden="true"><use href="#i-power"/></svg></button></div>
+    </header>
+    <section class="device-panel" id="device-panel" aria-label="输出设备设置" hidden>
+      <div class="device-panel-top"><label for="device">输出到</label><select class="device-select" id="device"></select><button class="text-button" id="refresh-devices" type="button">重新查找</button></div>
+      <p class="device-hint" id="device-hint">在目标应用里，将麦克风选为同一个虚拟音频设备。</p>
+      <div class="device-bottom"><a href="https://existential.audio/blackhole/" target="_blank" rel="noopener noreferrer">了解 BlackHole</a></div>
+    </section>
+    <div class="compose">
+      <label class="editor-label" for="text">你打字，它开口。</label>
+      <textarea class="editor" id="text" placeholder="写下来，我替你说。" aria-label="想说的话"></textarea>
+      <div class="options">
+        <label class="option"><svg class="icon" aria-hidden="true"><use href="#i-audio"/></svg><span class="sr-only">声音</span><select id="voice" aria-label="声音" disabled><option>正在查找声音</option></select></label>
+        <label class="option"><svg class="icon" aria-hidden="true"><use href="#i-gauge"/></svg><span class="sr-only">语速</span><select id="rate" aria-label="语速"></select></label>
       </div>
-      <div class="field">
-        <label>语速（默认 200）</label>
-        <input type="number" id="rate" value="200" min="80" max="400" step="10">
+    </div>
+    <div class="footer">
+      <div class="footer-info">
+        <div class="status" id="status" role="status" aria-live="polite">正在准备</div>
+        <div class="progress" id="playback-progress" hidden>
+          <div class="progress-track" id="progress-track" role="progressbar" aria-label="播放进度" aria-valuemin="0"><div class="progress-fill" id="progress-fill"></div></div>
+          <span class="progress-time" id="progress-time" aria-hidden="true"></span>
+        </div>
       </div>
-      <div class="field">
-        <label>播放到</label>
-        <select id="device"></select>
-      </div>
-      <button class="btn btn-primary" id="btn-gen">生成音频</button>
-      <button class="btn btn-primary" id="btn-genplay">生成并送去麦克风</button>
+      <button class="speak" id="speak" type="button" disabled><svg class="icon" aria-hidden="true"><use id="speak-icon" href="#i-play"/></svg><span id="speak-label">替我说</span><kbd id="shortcut">⌘ ↵</kbd></button>
     </div>
-    <div class="status" id="status"></div>
-    <div class="hint">
-      用法：浏览器 / AI 工具的麦克风选 <code>BlackHole 2ch</code>，点它的听筒按钮后，这边点「送去麦克风」，声音就会作为输入进去。
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>
-      音频文件
-      <span class="badge" style="margin-left:8px;"><span class="dot"></span><span id="count">0</span> 个</span>
-    </h2>
-    <div class="list" id="list"></div>
-    <div class="hint" id="dirHint"></div>
-  </div>
-</div>
-
-<div class="modal-mask" id="exitMask">
-  <div class="modal">
-    <h3>关闭工具？</h3>
-    <p>关闭后服务会停止，8787 端口释放。已生成的音频文件不会删除，下次启动还在。要重新使用，双击 <code>启动工具.command</code> 即可。</p>
-    <div class="acts">
-      <button class="btn btn-ghost" id="exit-cancel">取消</button>
-      <button class="btn btn-solid-danger" id="exit-ok">确认退出</button>
-    </div>
-  </div>
-</div>
-
+    <section class="history">
+      <button class="history-toggle" id="history-toggle" type="button" aria-expanded="false" aria-controls="history-list"><svg class="icon" aria-hidden="true"><use href="#i-history"/></svg><span>最近录音</span><span id="count">0</span><svg class="icon history-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+      <div class="history-list" id="history-list" hidden><ul id="recordings" aria-label="生成过的录音"></ul><div class="empty" id="empty" hidden>说过的话，会留在这里。</div></div>
+    </section>
+  </section>
+</main>
 <script>
-const $ = (s) => document.querySelector(s);
-let state = { items: [] };
-let playingName = null;
+'use strict';
+const $ = (selector) => document.querySelector(selector);
+const desktop = !!window.ghostMicDesktop;
+if (desktop) document.body.classList.add('desktop');
+const activeStates = new Set(['generating', 'starting', 'playing']);
+const state = { devices: [], voices: [], items: [], job: null, pending: false, initialized: false, preview: null, previewName: null, timer: null };
+const knownVoices = { Tingting: '婷婷 · 普通话', Sinji: '善怡 · 粤语', Meijia: '美佳 · 台湾', Samantha: 'Samantha · 英语' };
 
+function readSetting(key) { try { return desktop ? window.ghostMicDesktop.getSetting(key) : localStorage.getItem('ghostmic.' + key); } catch (_) { return null; } }
+function saveSetting(key, value) { try { if (desktop) window.ghostMicDesktop.saveSetting(key, value); else localStorage.setItem('ghostmic.' + key, value); } catch (_) {} }
+function isActive(job = state.job) { return !!job && activeStates.has(job.state); }
+function setStatus(message, error = false) { $('#status').textContent = message; $('#status').classList.toggle('error', error); }
+function icon(name) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  svg.setAttribute('class', 'icon'); svg.setAttribute('aria-hidden', 'true'); use.setAttribute('href', '#i-' + name); svg.appendChild(use); return svg;
+}
 async function api(path, body) {
-  const opt = body
-    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-    : {};
-  const res = await fetch(path, opt);
-  return res.json();
-}
-
-function fmtSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-}
-
-function fmtTime(ts) {
-  const d = new Date(ts * 1000);
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-function setStatus(msg, type) {
-  const el = $('#status');
-  el.textContent = msg || '';
-  el.className = 'status ' + (type || '');
-}
-
-function renderList() {
-  const list = $('#list');
-  $('#count').textContent = state.items.length;
-  if (!state.items.length) {
-    list.innerHTML = '<div class="empty">还没有音频，输入文字生成一个试试</div>';
-    return;
-  }
-  list.innerHTML = state.items.map((it) => `
-    <div class="item" data-name="${it.name}">
-      <div class="meta">
-        <div class="name">${it.name.replace(/\.wav$/, '')}</div>
-        <div class="info">${fmtTime(it.mtime)} · ${it.duration != null ? it.duration + ' 秒' : '—'} · ${fmtSize(it.size)}</div>
-      </div>
-      <div class="actions">
-        <button class="btn btn-ghost btn-sm act-listen">试听</button>
-        <button class="btn btn-ghost btn-sm act-send">送去麦克风</button>
-        <button class="btn btn-danger btn-sm act-del">删除</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function refresh() {
-  const data = await api('/api/list');
-  state.items = data.items || [];
-  renderList();
-}
-
-function currentDevice() {
-  const v = $('#device').value;
-  return v ? parseInt(v, 10) : null;
-}
-
-async function playToMic(name) {
-  playingName = name;
-  const r = await api('/api/play', { name, device: currentDevice() });
-  if (r.ok) {
-    setStatus(`正在播放到麦克风：${name}`, 'ok');
-    setTimeout(() => { if (playingName === name) playingName = null; }, 1500);
-  } else {
-    setStatus('播放失败：' + (r.error || ''), 'err');
-  }
-}
-
-async function generate(andPlay) {
-  const text = $('#text').value.trim();
-  if (!text) { setStatus('请先输入文字', 'err'); return; }
-  const btns = [$('#btn-gen'), $('#btn-genplay')];
-  btns.forEach((b) => b.disabled = true);
-  setStatus('正在合成音频…', 'info');
+  let response;
   try {
-    const r = await api('/api/generate', {
-      text,
-      voice: $('#voice').value,
-      rate: parseInt($('#rate').value, 10) || 200,
-    });
-    if (!r.ok) { setStatus('合成失败：' + (r.error || ''), 'err'); return; }
-    state.items = r.items || [];
-    renderList();
-    setStatus('已生成：' + r.name, 'ok');
-    if (andPlay) await playToMic(r.name);
-  } catch (e) {
-    setStatus('出错了：' + e.message, 'err');
-  } finally {
-    btns.forEach((b) => b.disabled = false);
+    response = await fetch(path, body === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  } catch (_) { throw new Error('无法连接 GhostMic，请检查工具是否仍在运行'); }
+  let result;
+  try { result = await response.json(); } catch (_) { throw new Error('无法读取工具返回的信息'); }
+  if (!response.ok || result.ok === false) throw new Error(result.error || '操作没有完成，请重试');
+  return result;
+}
+function setPanel(open) { $('#device-panel').hidden = !open; $('#device-toggle').setAttribute('aria-expanded', String(open)); }
+function selectedDevice() { return state.devices.find((device) => String(device.index) === $('#device').value) || null; }
+function updateDevice() {
+  const device = selectedDevice();
+  $('#device-name').textContent = device ? device.name : '选择输出设备';
+  $('#device-name').title = device ? device.name : '选择输出设备';
+  $('#device-dot').classList.toggle('ready', !!device);
+  $('#device-hint').textContent = !device
+    ? '选择一个输出设备。要让其他应用把声音当成麦克风输入，请先安装虚拟音频设备。'
+    : device.is_virtual ? `在目标应用里，将麦克风选为 ${device.name}。`
+    : '这是普通输出设备，声音会从这里播放；要作为麦克风输入，请选择虚拟音频设备。';
+}
+function renderDevices(devices, preferred) {
+  state.devices = devices;
+  const select = $('#device'); select.replaceChildren(new Option('请选择输出设备', ''));
+  devices.forEach((device) => select.add(new Option(device.name + (device.is_virtual ? '（虚拟）' : ''), String(device.index))));
+  const chosen = devices.find((device) => device.name === preferred);
+  select.value = chosen ? String(chosen.index) : '';
+  updateDevice();
+}
+function renderVoices(voices, preferred) {
+  state.voices = voices;
+  const select = $('#voice'); select.replaceChildren();
+  if (!voices.length) { select.add(new Option('没有可用的声音', '')); select.disabled = true; return; }
+  voices.forEach((voice) => select.add(new Option(knownVoices[voice.name] || `${voice.name} · ${voice.language.replace('_', '-')}`, voice.name)));
+  select.value = voices.some((voice) => voice.name === preferred) ? preferred : voices[0].name;
+  select.disabled = false;
+}
+function renderRates() {
+  const select = $('#rate');
+  for (let n = 80; n <= 400; n += 10) {
+    const label = n === 160 ? '慢一点 · 160' : n === 200 ? '正常语速 · 200' : n === 240 ? '快一点 · 240' : `语速 · ${n}`;
+    select.add(new Option(label, String(n)));
+  }
+  const saved = readSetting('rate'); select.value = saved && select.querySelector(`option[value="${Number(saved)}"]`) ? saved : '200';
+}
+function displayName(name) {
+  return name.replace(/\.wav$/i, '').replace(/^\d{8}_\d{6}_/, '').replace(/_[a-f0-9]{8}$/, '').replace(/_/g, ' ') || '录音';
+}
+function formatDate(timestamp) {
+  return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp * 1000));
+}
+function recordButton(label, symbol, title, action) {
+  const button = document.createElement('button'); button.type = 'button'; button.className = 'record-action ' + action;
+  button.setAttribute('aria-label', `${label}：${title}`); button.title = label; button.append(icon(symbol));
+  if (action === 'replay') { const text = document.createElement('span'); text.textContent = '再说'; button.append(text); }
+  button.disabled = state.pending || isActive();
+  return button;
+}
+function renderHistory() {
+  $('#count').textContent = state.items.length;
+  $('#empty').hidden = !!state.items.length;
+  const list = $('#recordings'); list.replaceChildren();
+  for (const item of state.items) {
+    const title = displayName(item.name); const li = document.createElement('li'); const row = document.createElement('div'); row.className = 'record';
+    const recordIcon = document.createElement('span'); recordIcon.className = 'record-icon'; recordIcon.append(icon('audio'));
+    const meta = document.createElement('div'); meta.className = 'record-meta';
+    const heading = document.createElement('div'); heading.className = 'record-title'; heading.textContent = title; heading.title = title;
+    const info = document.createElement('div'); info.className = 'record-info'; info.textContent = formatDate(item.mtime) + (item.duration != null ? ` · ${item.duration} 秒` : '');
+    meta.append(heading, info);
+    const actions = document.createElement('div'); actions.className = 'record-actions';
+    const preview = recordButton(state.previewName === item.name ? '停止试听' : '试听', state.previewName === item.name ? 'stop' : 'headphones', title, 'preview');
+    const replay = recordButton('重播', 'play', title, 'replay');
+    const remove = recordButton('删除', 'trash', title, 'delete');
+    preview.addEventListener('click', () => previewRecording(item));
+    replay.addEventListener('click', () => startRecording(item));
+    remove.addEventListener('click', () => deleteRecording(item));
+    actions.append(preview, replay, remove); row.append(recordIcon, meta, actions); li.append(row); list.append(li);
   }
 }
-
-// 事件
-$('#btn-gen').onclick = () => generate(false);
-$('#btn-genplay').onclick = () => generate(true);
-
-$('#list').addEventListener('click', async (e) => {
-  const item = e.target.closest('.item');
-  if (!item) return;
-  const name = item.dataset.name;
-  if (e.target.classList.contains('act-listen')) {
-    const audio = new Audio('/audio/' + encodeURIComponent(name));
-    audio.play();
-    setStatus('本机试听：' + name, 'info');
-  } else if (e.target.classList.contains('act-send')) {
-    playToMic(name);
-  } else if (e.target.classList.contains('act-del')) {
-    if (!confirm('确定删除 ' + name + ' ？')) return;
-    const r = await api('/api/delete', { name });
-    state.items = r.items || [];
-    renderList();
-    setStatus(r.ok ? '已删除：' + name : '删除失败', r.ok ? 'ok' : 'err');
-  }
-});
-
-// 退出
-$('#btn-exit').onclick = () => $('#exitMask').classList.add('show');
-$('#exit-cancel').onclick = () => $('#exitMask').classList.remove('show');
-$('#exitMask').addEventListener('click', (e) => {
-  if (e.target.id === 'exitMask') $('#exitMask').classList.remove('show');
-});
-$('#exit-ok').onclick = async () => {
-  try { await api('/api/shutdown', {}); } catch (e) {}
-  document.body.innerHTML =
-    '<div style="max-width:520px;margin:120px auto;text-align:center;font-family:-apple-system,\'PingFang SC\',sans-serif;">' +
-    '<div style="font-size:40px;margin-bottom:16px;">✓</div>' +
-    '<h2 style="font-size:18px;font-weight:600;color:#1f2328;margin-bottom:10px;">工具已关闭</h2>' +
-    '<p style="color:#6b7280;font-size:14px;line-height:1.8;">服务已停止，这个标签页可以关掉了。<br>下次要用，双击 <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">启动工具.command</code> 即可。</p>' +
-    '</div>';
-};
-
-async function init() {
-  const s = await api('/api/state');
-  const sel = $('#device');
-  sel.innerHTML = (s.devices || []).map((d) =>
-    `<option value="${d.index}"${d.index === s.defaultDevice ? ' selected' : ''}>${d.name}${d.is_virtual ? '（虚拟）' : ''}</option>`
-  ).join('');
-  state.items = s.items || [];
-  renderList();
-  $('#dirHint').textContent = '存放目录：' + (s.audioDir || '');
+function updateControls() {
+  const active = isActive();
+  $('#speak').disabled = !state.initialized || state.pending || !!state.job?.stopping;
+  $('#speak-label').textContent = active ? (state.job.stopping ? '正在停止' : '停止') : '替我说';
+  $('#speak-icon').setAttribute('href', active ? '#i-stop' : '#i-play');
+  $('#shortcut').textContent = active ? 'Esc' : '⌘ ↵';
+  $('#text').readOnly = active || state.pending;
+  $('#voice').disabled = active || state.pending || !state.voices.length;
+  $('#rate').disabled = active || state.pending;
+  $('#device').disabled = active || state.pending;
+  $('#refresh-devices').disabled = active || state.pending;
+  renderHistory();
 }
-init();
-
-// Ctrl/Cmd + Enter 生成
-$('#text').addEventListener('keydown', (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') generate(false);
+function describeJob(job) {
+  if (!job) return;
+  if (job.stopping) setStatus('正在停止…');
+  else if (job.state === 'generating') setStatus('正在合成语音…');
+  else if (job.state === 'starting') setStatus('正在连接输出设备…');
+  else if (job.state === 'playing') setStatus('正在播放到输出设备 · Esc 停止');
+  else if (job.state === 'stopped') setStatus('已停止');
+  else if (job.state === 'done') setStatus('播放完成');
+  else if (job.state === 'error') setStatus(job.error || '播放失败，请重试', true);
+}
+function formatTime(seconds) {
+  const value = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor(value / 60) % (hours ? 60 : Infinity);
+  const parts = [String(minutes).padStart(2, '0'), String(value % 60).padStart(2, '0')];
+  if (hours) parts.unshift(String(hours).padStart(2, '0'));
+  return parts.join(':');
+}
+function updateProgress(job) {
+  const elapsed = job?.elapsed, duration = job?.duration;
+  const visible = job?.state === 'playing' && Number.isFinite(elapsed) && Number.isFinite(duration) && duration > 0;
+  $('#playback-progress').hidden = !visible;
+  if (!visible) return;
+  const current = Math.max(0, Math.min(elapsed, duration));
+  const currentTime = formatTime(current), totalTime = formatTime(Math.ceil(duration));
+  $('#progress-fill').style.width = `${current / duration * 100}%`;
+  $('#progress-time').textContent = `${currentTime} / ${totalTime}`;
+  $('#progress-track').setAttribute('aria-valuemax', String(duration));
+  $('#progress-track').setAttribute('aria-valuenow', String(current));
+  $('#progress-track').setAttribute('aria-valuetext', `已播放 ${currentTime}，共 ${totalTime}`);
+}
+async function refreshHistory() { const data = await api('/api/list'); state.items = data.items || []; renderHistory(); }
+function followJob(job, initial = false) {
+  const previous = state.job;
+  state.job = job;
+  updateProgress(job);
+  if (job && (!initial || isActive(job))) describeJob(job);
+  if (!job && previous && isActive(previous)) setStatus('播放已中断，请重试', true);
+  if ((!job && previous && isActive(previous)) || (!initial && job && !isActive(job) && (!previous || previous.id !== job.id || isActive(previous)))) refreshHistory().catch((error) => setStatus(error.message, true));
+  updateControls();
+  clearTimeout(state.timer);
+  if (isActive(job)) state.timer = setTimeout(pollJob, 350);
+}
+async function pollJob() {
+  try { const data = await api('/api/playback'); followJob(data.job); }
+  catch (error) { setStatus(error.message, true); state.timer = setTimeout(pollJob, 2000); }
+}
+function stopPreview() {
+  const audio = state.preview;
+  state.preview = null; state.previewName = null;
+  if (audio) { audio.pause(); audio.src = ''; updateProgress(isActive() ? state.job : null); }
+}
+async function startRequest(path, body) {
+  if (state.pending || isActive()) return;
+  stopPreview(); state.pending = true; updateControls();
+  try { const result = await api(path, body); state.pending = false; followJob(result.job); }
+  catch (error) {
+    state.pending = false; setStatus(error.message, true); updateControls();
+    try { const current = await api('/api/playback'); if (isActive(current.job)) followJob(current.job); } catch (_) {}
+  }
+}
+async function stopPlayback() {
+  if (!isActive() || state.job.stopping || state.pending) return;
+  state.pending = true; setStatus('正在停止…'); updateControls();
+  try { const result = await api('/api/stop', { id: state.job.id }); state.pending = false; followJob(result.job); }
+  catch (error) { state.pending = false; setStatus(error.message, true); updateControls(); }
+}
+function requireDevice() {
+  const device = selectedDevice();
+  if (!device) { setPanel(true); setStatus('请先选择输出设备', true); $('#device').focus(); }
+  return device;
+}
+function speak() {
+  if (isActive()) { stopPlayback(); return; }
+  if (state.pending || !state.initialized) return;
+  const text = $('#text').value.trim();
+  if (!text) { setStatus('先写一句想说的话', true); $('#text').focus(); return; }
+  const device = requireDevice(); if (!device) return;
+  const voice = $('#voice').value;
+  if (!voice) { setStatus('系统没有找到可用的声音', true); return; }
+  setStatus('正在准备…'); startRequest('/api/speak', { text, voice, rate: Number($('#rate').value), device: device.index, deviceName: device.name });
+}
+function startRecording(item) {
+  const device = requireDevice(); if (!device) return;
+  setStatus('正在准备播放…'); startRequest('/api/play', { name: item.name, device: device.index, deviceName: device.name });
+}
+function previewRecording(item) {
+  if (state.previewName === item.name) { stopPreview(); setStatus('已停止试听'); renderHistory(); return; }
+  stopPreview();
+  const audio = new Audio('/audio/' + encodeURIComponent(item.name)); state.preview = audio; state.previewName = item.name; renderHistory();
+  const showProgress = () => { if (state.preview === audio && !audio.paused) updateProgress({ state: 'playing', elapsed: audio.currentTime, duration: audio.duration }); };
+  audio.onplaying = () => { if (state.preview === audio) { setStatus('正在本机试听'); showProgress(); } };
+  audio.ontimeupdate = showProgress;
+  audio.onended = () => { if (state.preview === audio) { stopPreview(); setStatus('试听完成'); renderHistory(); } };
+  audio.onerror = () => { if (state.preview === audio) { stopPreview(); setStatus('试听失败，请确认录音还存在', true); renderHistory(); } };
+  audio.play().catch(() => { if (state.preview === audio) { stopPreview(); setStatus('试听失败，请重试', true); renderHistory(); } });
+}
+async function deleteRecording(item) {
+  if (!confirm(`删除这条录音？\n${displayName(item.name)}`)) return;
+  if (state.previewName === item.name) stopPreview();
+  try { const result = await api('/api/delete', { name: item.name }); state.items = result.items || []; renderHistory(); setStatus('录音已删除'); }
+  catch (error) { setStatus(error.message, true); }
+}
+async function loadState(refresh = false) {
+  if (refresh) { $('#refresh-devices').disabled = true; setStatus('正在查找设备…'); }
+  const oldDevice = selectedDevice();
+  try {
+    const data = await api('/api/state');
+    const devices = data.devices || [];
+    const savedDevice = readSetting('device');
+    const defaultDevice = devices.find((device) => device.index === data.defaultDevice);
+    const preferred = refresh ? oldDevice?.name : (savedDevice || defaultDevice?.name);
+    renderDevices(devices, preferred);
+    renderVoices(data.voices || [], refresh ? $('#voice').value : readSetting('voice'));
+    state.items = data.items || []; state.initialized = true;
+    followJob(data.job, !refresh);
+    if (!isActive()) {
+      if (!devices.length) setStatus('没有找到输出设备', true);
+      else if (!selectedDevice()) setStatus('请先选择输出设备', true);
+      else if (!state.voices.length) setStatus('系统没有找到可用的声音', true);
+      else setStatus(refresh ? '设备已更新' : '随时可以开口');
+    }
+  } catch (error) { state.initialized = false; setStatus(error.message, true); updateControls(); }
+}
+function resizeEditor() { const text = $('#text'); text.style.height = 'auto'; text.style.height = Math.min(360, Math.max(text.scrollHeight, 110)) + 'px'; }
+$('#text').addEventListener('input', () => { resizeEditor(); if ($('#status').classList.contains('error')) setStatus('随时可以开口'); });
+$('#text').addEventListener('keydown', (event) => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !event.isComposing) { event.preventDefault(); speak(); } });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { if (isActive()) { event.preventDefault(); stopPlayback(); } else if (!$('#device-panel').hidden) { setPanel(false); $('#device-toggle').focus(); } else if (state.preview) { stopPreview(); setStatus('已停止试听'); renderHistory(); } } });
+$('#speak').addEventListener('click', speak);
+$('#device-toggle').addEventListener('click', () => setPanel($('#device-panel').hidden));
+$('#device').addEventListener('change', () => { const device = selectedDevice(); saveSetting('device', device?.name || ''); updateDevice(); setStatus(device ? '输出设备已选择' : '请先选择输出设备', !device); });
+$('#voice').addEventListener('change', () => saveSetting('voice', $('#voice').value));
+$('#rate').addEventListener('change', () => saveSetting('rate', $('#rate').value));
+$('#refresh-devices').addEventListener('click', () => loadState(true));
+$('#history-toggle').addEventListener('click', () => { const open = $('#history-list').hidden; $('#history-list').hidden = !open; $('#history-toggle').setAttribute('aria-expanded', String(open)); });
+$('#exit').addEventListener('click', async () => {
+  if (!confirm('关闭 GhostMic？已生成的录音会保留。')) return;
+  if (desktop) { window.ghostMicDesktop.quit(); return; }
+  try { await api('/api/shutdown', {}); clearTimeout(state.timer); stopPreview(); $('#app').innerHTML = '<div class="closed"><h1>GhostMic 已关闭</h1><p>这个页面可以关掉了。下次使用时，双击“启动工具.command”。</p></div>'; }
+  catch (error) { setStatus(error.message, true); }
 });
+renderRates(); resizeEditor(); loadState();
 </script>
 </body>
 </html>

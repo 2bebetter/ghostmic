@@ -1,8 +1,15 @@
 #!/bin/bash
 # GhostMic 启动脚本
-# 双击本文件即可启动；会自动挑一个装了依赖的 Python。
+# 兼容旧启动入口：优先打开 Mac 应用，未构建时使用网页版。
 
 cd "$(dirname "$0")" || exit 1
+
+# 新版应用可直接启动；保留旧入口，避免用户需要更换习惯。
+for app in "$PWD/GhostMic.app" "$HOME/Applications/GhostMic.app" "/Applications/GhostMic.app"; do
+  if [ -d "$app" ] && [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist" 2>/dev/null)" = "com.ghostmic.desktop" ]; then
+    exec /usr/bin/open -a "$app"
+  fi
+done
 
 # 按优先级找一个可用的 python（必须有 sounddevice / numpy）
 CANDIDATES=(
