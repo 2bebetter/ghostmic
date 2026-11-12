@@ -1,0 +1,75 @@
+name: Publish GhostMic preview
+
+on:
+  push:
+    tags:
+      - v1.0.0-beta.1
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build standalone preview
+        run: python3 scripts/build_release.py --arch '${{ matrix.arch }}'
+      - name: Verify archive and run backend tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && shasum -a 256 -c 'GhostMic-${{ matrix.arch }}.sha256')
+          mkdir -p "$RUNNER_TEMP/ghostmic-check"
+          ditto -x -k 'dist/GhostMic-${{ matrix.arch }}.zip' "$RUNNER_TEMP/ghostmic-check"
+          app="$RUNNER_TEMP/ghostmic-check/GhostMic.app"
+          codesign --verify --deep --strict "$app"
+          "$app/Contents/Resources/python/bin/python3" -B -m unittest discover -s tests -p test_server.py -v
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ghostmic-${{ matrix.arch }}
+          path: |
+            dist/GhostMic-${{ matrix.arch }}.zip
+            dist/GhostMic-${{ matrix.arch }}.sha256
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: ghostmic-*
+          merge-multiple: true
+          path: dist
+      - name: Create and verify release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum -c GhostMic-arm64.sha256 && sha256sum -c GhostMic-x86_64.sha256)
+          gh release create "$GITHUB_REF_NAME" \
+            dist/GhostMic-arm64.zip dist/GhostMic-arm64.sha256 \
+            dist/GhostMic-x86_64.zip dist/GhostMic-x86_64.sha256 \
+            --verify-tag --draft --prerelease --title 'GhostMic 1.0 预览版' \
+            --notes-file docs/release-notes/v1.0.0-beta.1.md
+          mkdir -p "$RUNNER_TEMP/release-verification"
+          gh release download "$GITHUB_REF_NAME" --dir "$RUNNER_TEMP/release-verification"
+          (cd "$RUNNER_TEMP/release-verification" && sha256sum -c GhostMic-arm64.sha256 && sha256sum -c GhostMic-x86_64.sha256)
+          gh release edit "$GITHUB_REF_NAME" --draft=false
