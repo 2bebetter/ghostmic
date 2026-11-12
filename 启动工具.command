@@ -13,6 +13,7 @@ done
 
 # 按优先级找一个可用的 python（必须有 sounddevice / numpy）
 CANDIDATES=(
+  "$PWD/.venv/bin/python3"
   "$HOME/.workbuddy/binaries/python/envs/default/bin/python"
   "$(command -v python3)"
   "/opt/homebrew/bin/python3"
@@ -33,7 +34,8 @@ if [ -z "$PY" ]; then
   echo "找不到装了 sounddevice 和 numpy 的 Python。"
   echo ""
   echo "请先在终端里执行一次："
-  echo "  python3 -m pip install --user sounddevice numpy"
+  echo "  python3 -m venv .venv"
+  echo "  .venv/bin/python -m pip install -r requirements.txt"
   echo ""
   read -n 1 -s -r -p "按任意键退出..."
   exit 1

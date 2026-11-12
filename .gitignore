@@ -14,3 +14,6 @@ venv/
 # 本机生成的 macOS 应用
 /GhostMic.app/
 /.ghostmic-build-*/
+
+# 本地打包产物
+/dist/

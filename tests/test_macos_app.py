@@ -14,7 +14,7 @@ import wave
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-APP = ROOT / "GhostMic.app"
+APP = Path(os.environ.get("GHOSTMIC_TEST_APP", ROOT / "GhostMic.app"))
 
 
 def main():
@@ -28,7 +28,7 @@ def main():
             app.parent.mkdir()
             shutil.copytree(APP, app, symlinks=True)
             binary = app / "Contents/MacOS/GhostMic"
-            architecture = subprocess.check_output(["uname", "-m"], text=True).strip()
+            architecture = os.environ.get("GHOSTMIC_TEST_ARCH") or subprocess.check_output(["uname", "-m"], text=True).strip()
             subprocess.run(["swiftc", "-O", "-D", "GHOSTMIC_TESTS", "-target", architecture + "-apple-macosx14.5", str(ROOT / "macos/GhostMic.swift"), "-o", str(binary)], check=True)
             subprocess.run(["codesign", "--force", "--deep", "--sign", "-", str(app)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             original = temporary / "legacy"
@@ -45,6 +45,9 @@ def main():
             result = temporary / "result.json"
             screenshot = temporary / "window.png"
             environment = {**os.environ, "GHOSTMIC_TEST_PREF_SUITE": suite, "GHOSTMIC_TEST_DATA_DIR": str(data), "GHOSTMIC_TEST_LEGACY_DIR": str(original), "GHOSTMIC_TEST_RESULT": str(result), "GHOSTMIC_TEST_SCREENSHOT": str(screenshot)}
+            if os.environ.get("GHOSTMIC_TEST_DISTRIBUTION") == "1":
+                # An isolated install must ignore a broken user Python configuration.
+                environment.update(PATH="/usr/bin:/bin", PYTHONHOME="/nonexistent", PYTHONPATH="/nonexistent")
             for run in range(2):
                 if result.exists():
                     result.unlink()
@@ -64,6 +67,8 @@ def main():
                 if run == 0 and os.environ.get("GHOSTMIC_DEBUG_SCREENSHOT"):
                     shutil.copyfile(screenshot, os.environ["GHOSTMIC_DEBUG_SCREENSHOT"])
                 assert report.get("desktop") and report.get("layout") and report.get("ready") and report.get("progress"), report
+                if os.environ.get("GHOSTMIC_TEST_DISTRIBUTION") == "1":
+                    assert report.get("python") == str(app / "Contents/Resources/python/bin/python3"), report
                 assert report.get("hidden") and report.get("reopened"), report
                 assert "打开 GhostMic" in report["menu"] and "退出 GhostMic" in report["menu"], report
                 assert report.get("storedRate") == "240", report

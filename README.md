@@ -6,14 +6,22 @@ GhostMic 是一款 macOS 本地语音工具。输入文字后，它会用系统�
 
 它适合不方便开口的时候，也适合反复测试同一句语音。生成过的录音会保留在本机，随时可以再播放。
 
+## 下载和安装
+
+应用支持 macOS 14.5 或更新版本。前往 [GhostMic 预览版下载页面](https://github.com/2bebetter/ghostmic/releases/tag/v1.0.0-beta.1)，在 Assets 中选择适合你的版本：
+
+- **GhostMic-arm64.zip**：Apple 芯片 Mac。
+- **GhostMic-x86_64.zip**：Intel Mac（目前已通过 Rosetta 测试，尚未在 Intel 真机验证）。
+
+可在 Mac 左上角「苹果菜单 → 关于本机」查看芯片或处理器。下载后解压，将 **GhostMic.app** 拖到“应用程序”文件夹并双击打开。预览包自带 Python 和播放组件，使用时无需自行安装 Python 或连接网络。
+
+预览版使用临时签名，尚未经过 Apple 开发者签名和公证，首次打开时 macOS 可能会阻止运行。确认下载自上面的项目页面且信任该应用后，可先尝试打开一次，再前往「系统设置 → 隐私与安全性」，在页面下方选择 **仍要打开**，并按系统提示确认。不同 macOS 版本的提示可能不同。如果系统提示应用已损坏或含有恶意软件，请勿强行打开。具体说明见 [Apple 官方帮助](https://support.apple.com/zh-cn/102445)。
+
 ## 开始使用
 
-应用支持 macOS 14.5 或更新版本，兼容 Apple 芯片和 Intel Mac，需要本机安装 Python 3。如果你下载的是源码，仓库中没有编译好的 `GhostMic.app`，请先按照下面的「从源码构建」生成应用。
-
-1. 双击 **GhostMic.app**。不需要打开终端或浏览器；你也可以把它拖到“应用程序”文件夹。
-2. 第一次使用时，如果缺少必要的播放组件，应用会提示你联网安装，按提示完成即可。生成语音使用 macOS 自带的声音，无需外部语音服务。
-3. 如需让其他应用把声音当作麦克风输入，先安装 [BlackHole 2ch](https://existential.audio/blackhole/)，然后在目标应用中把麦克风选为 **BlackHole 2ch**，按该应用的要求开启麦克风或录音。
-4. 在 GhostMic 输入文字，选择声音和语速，确认右上角的输出设备为 **BlackHole 2ch**。点击 **替我说**，也可以按 `⌘ Enter`。播放时底部会显示进度和时长，可以点击 **停止** 或按 `Esc`。
+1. 双击 **GhostMic.app**，不需要打开终端或浏览器。源码构建版如果缺少播放组件，会提示联网安装。生成语音使用 macOS 自带的声音，无需外部语音服务。
+2. 如需让其他应用把声音当作麦克风输入，先安装 [BlackHole 2ch](https://existential.audio/blackhole/)，然后在目标应用中把麦克风选为 **BlackHole 2ch**，按该应用的要求开启麦克风或录音。
+3. 在 GhostMic 输入文字，选择声音和语速，确认右上角的输出设备为 **BlackHole 2ch**。点击 **替我说**，也可以按 `⌘ Enter`。播放时底部会显示进度和时长，可以点击 **停止** 或按 `Esc`。
 
 GhostMic 只能确认本机输出设备的播放状态；是否被目标应用接收，请在目标应用中确认。如果没有找到虚拟设备，点击右上角的设备名称，选择设备或重新查找。也可以手动选择普通扬声器，但声音将从该设备输出，不会自动成为其他应用的麦克风输入。
 
@@ -21,19 +29,25 @@ GhostMic 只能确认本机输出设备的播放状态；是否被目标应用�
 
 关闭窗口后，GhostMic 仍会留在屏幕顶部的菜单栏里。点击菜单栏里的波形图标，选择 **打开 GhostMic**，就可以继续使用；选择 **退出 GhostMic** 可完全关闭。窗口右上角的电源按钮和 `⌘ Q` 也可以退出。
 
-第一次打开应用时，旧版 `audio/` 目录中的录音会复制到应用的本机数据目录；原文件不会删除。新录音保存在 `~/Library/Application Support/GhostMic/audio/`，移动或更新应用不会影响这些录音。
+新录音保存在 `~/Library/Application Support/GhostMic/audio/`，移动或更新应用不会影响这些录音。源码构建版第一次打开时会尝试复制旧项目 `audio/` 目录中的录音，原文件不会删除。
 
-## 从源码构建
+独立安装包不会扫描旧项目目录。如果要迁移旧网页版录音，请先打开一次应用并退出，在 Finder 中将旧项目 `audio/` 里的录音复制到 `~/Library/Application Support/GhostMic/audio/`，再打开应用；遇到同名文件时请避免覆盖已有录音。
 
-在 macOS 终端中进入项目目录，运行：
+## 从源码安装
+
+需要 macOS 14.5 或更新版本、Python 3.9 或更新版本，以及 Xcode 命令行工具。安装播放组件需要联网。如果还没有 Xcode 命令行工具，可在终端运行 `xcode-select --install`。
 
 ```bash
-python3 scripts/build_macos_app.py
+git clone https://github.com/2bebetter/ghostmic.git
+cd ghostmic
+python3 scripts/install_from_source.py
 ```
 
-构建需要 Xcode 命令行工具。完成后，项目目录中会生成 `GhostMic.app`，该应用由本机构建，不会提交到源码仓库。
+脚本会在项目内的 `.venv` 中安装播放组件，并在项目目录生成 `GhostMic.app`；然后双击该应用即可使用。已有源码的用户可以从 `python3 scripts/install_from_source.py` 这一步开始。应用本身由本机构建，不会提交到源码仓库。
 
-更新后重新构建应用，并从菜单栏选择 **退出 GhostMic**，再打开新版本。如果之前将应用拖到了“应用程序”文件夹，也需要将新构建的应用替换到该位置。录音保存在应用数据目录，不会随应用替换而删除。
+更新源码后可以重新运行同一条安装命令。构建完成后，从菜单栏选择 **退出 GhostMic**，再打开新版本。如果之前将应用拖到了“应用程序”文件夹，还需要将新构建的应用替换到该位置。录音保存在应用数据目录，不会随应用替换而删除。
+
+源码安装使用项目中的 `.venv`；如果之后移动或删除了源码目录，应用可能需要重新配置播放组件。
 
 ### 使用网页版
 
@@ -92,6 +106,8 @@ afconvert -f WAVE -d LEI16@16000 voice.aiff voice_16k.wav
 
 > 如果你没有这个困扰 —— 恭喜，你可以直接对着麦克风说话。
 > 这个工具也还能帮你把测试用例变成可复现的音频文件，一样有用。
+
+开发者可以查看 [macOS 发布准备](docs/releasing.md) 和 [申请签名说明](docs/signing.md)，了解预览包构建和正式发布步骤。
 
 ## 设计许可
 

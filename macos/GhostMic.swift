@@ -153,7 +153,14 @@ final class GhostMicApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         try Data("done\n".utf8).write(to: marker, options: .atomic)
     }
 
+    private var isDistribution: Bool { Bundle.main.path(forResource: "distribution", ofType: "txt") != nil }
+
     private func candidatePythons() -> [String] {
+        if isDistribution {
+            guard let resources = Bundle.main.resourceURL else { return [] }
+            let python = resources.appendingPathComponent("python/bin/python3").path
+            return fileManager.isExecutableFile(atPath: python) ? [python] : []
+        }
         let home = fileManager.homeDirectoryForCurrentUser.path
         let legacyRoot = Bundle.main.path(forResource: "legacy-project-dir", ofType: "txt")
             .flatMap { try? String(contentsOfFile: $0, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -172,11 +179,14 @@ final class GhostMicApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             let candidates = self.candidatePythons()
-            let python = candidates.first { self.runSilently($0, ["-c", "import numpy, sounddevice"]) }
+            let arguments = (self.isDistribution ? ["-I", "-B"] : []) + ["-c", "import numpy, sounddevice"]
+            let python = candidates.first { self.runSilently($0, arguments) }
             DispatchQueue.main.async {
                 guard !self.shuttingDown else { return }
                 if let python = python { self.startServer(python) }
-                else {
+                else if self.isDistribution {
+                    self.showFailure("应用文件不完整或已损坏，请重新下载安装包。")
+                } else {
                     let bootstrap = candidates.first { $0 != self.pythonDirectory.appendingPathComponent("bin/python3").path } ?? candidates.first
                     self.offerDependencySetup(bootstrap)
                 }
@@ -259,8 +269,13 @@ final class GhostMicApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         guard let script = Bundle.main.path(forResource: "server", ofType: "py") else { showFailure("应用文件不完整，请重新构建 GhostMic。"); return }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: python)
-        process.arguments = ["-u", script]
+        process.arguments = (isDistribution ? ["-I", "-B"] : []) + ["-u", script]
         var environment = ProcessInfo.processInfo.environment
+        if isDistribution {
+            environment.removeValue(forKey: "PYTHONHOME")
+            environment.removeValue(forKey: "PYTHONPATH")
+            environment["PYTHONNOUSERSITE"] = "1"
+        }
         environment["GHOSTMIC_PORT"] = "0"
         environment["GHOSTMIC_AUDIO_DIR"] = audioDirectory.path
         environment["GHOSTMIC_NO_BROWSER"] = "1"
@@ -402,6 +417,7 @@ final class GhostMicApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                         report["menu"] = self.statusItem.menu?.items.map { $0.title } ?? []
                         report["storedRate"] = self.preferences.string(forKey: "ghostmic.rate") ?? ""
                         report["port"] = self.serverURL?.port ?? 0
+                        report["python"] = self.serverProcess?.executableURL?.path ?? ""
                         self.writeTestResult(report)
                         if ProcessInfo.processInfo.environment["GHOSTMIC_TEST_EXIT_METHOD"] == "page" {
                             self.webView?.evaluateJavaScript("document.querySelector('#exit').click()")
